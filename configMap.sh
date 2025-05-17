@@ -1,35 +1,40 @@
 #!/bin/bash
 
-# Accept blueprint folder, dummy folder, and output folder
-BLUEPRINT_DIR="$1"
-DUMMY_DIR="$2"
-OUTPUT_DIR="$3"
+# === Load configuration file ===
+CONFIG_FILE="./config-paths.cfg"  # Use full path if needed
 
-# Validate inputs
-if [[ -z "$BLUEPRINT_DIR" || -z "$DUMMY_DIR" || -z "$OUTPUT_DIR" ]]; then
-    echo "Usage: $0 <blueprint_folder> <dummy_folder> <output_yaml_folder>"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "Error: Configuration file $CONFIG_FILE not found."
     exit 1
 fi
 
-# Check if blueprint folder exists
+# Load variables
+source "$CONFIG_FILE"
+
+# === Validate paths ===
+if [[ -z "$BLUEPRINT_DIR" || -z "$DUMMY_DIR" || -z "$OUTPUT_DIR" ]]; then
+    echo "Error: One or more paths are not set in $CONFIG_FILE."
+    exit 1
+fi
+
 if [[ ! -d "$BLUEPRINT_DIR" ]]; then
     echo "Error: $BLUEPRINT_DIR is not a valid directory"
     exit 1
 fi
 
-# Find dummy.cfg inside dummy folder
+# === Locate dummy.cfg ===
 DUMMY_FILE=$(find "$DUMMY_DIR" -type f -name "*.cfg" | head -n 1)
 if [[ -z "$DUMMY_FILE" ]]; then
     echo "Error: No .cfg file found in $DUMMY_DIR"
     exit 1
 fi
 
-# Create output directory if it doesn't exist
+# === Create output dir ===
 mkdir -p "$OUTPUT_DIR"
 
 declare -A dummy_values
 
-# Load dummy.cfg into associative array
+# === Load dummy.cfg into array ===
 while IFS='=' read -r key value; do
     key="${key#"${key%%[![:space:]]*}"}"
     key="${key%"${key##*[![:space:]]}"}"
@@ -39,7 +44,7 @@ while IFS='=' read -r key value; do
     dummy_values["$key"]="$value"
 done < "$DUMMY_FILE"
 
-# Process all blueprint files
+# === Process blueprint files ===
 for blueprint_file in "$BLUEPRINT_DIR"/*.xml; do
     [ -e "$blueprint_file" ] || continue
 
@@ -55,7 +60,6 @@ for blueprint_file in "$BLUEPRINT_DIR"/*.xml; do
         echo "data:"
     } > "$OUTPUT_FILE"
 
-    # Extract placeholders from XML
     grep -E '<(from|to)' "$blueprint_file" | grep -Ev 'jdbc|cxf|cxfrs|activemq|repostingActivemq' |
     while read -r line; do
         while [[ "$line" =~ (\{\{[^\}]+\}\}) ]]; do
@@ -70,7 +74,6 @@ for blueprint_file in "$BLUEPRINT_DIR"/*.xml; do
         done
     done
 
-    # Process placeholders and write to output YAML
     sort -u "$TMP_FILE" | while read -r key; do
         cleaned_key=$(echo "$key" | sed 's/[{}]//g')
 
