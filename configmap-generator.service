@@ -1,0 +1,14 @@
+[Unit]
+Description=Run ConfigMap Generator Script
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/ashna/Documents/Task1/run_conf.sh
+Restart=always
+User=ashna
+WorkingDirectory=/home/ashna/Documents/Task1
+
+[Install]
+WantedBy=multi-user.target
+
